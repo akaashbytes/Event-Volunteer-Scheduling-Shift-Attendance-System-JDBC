@@ -1,0 +1,61 @@
+package com.eventvol.dao;
+
+import java.sql.*;
+import java.util.*;
+import com.eventvol.bean.Volunteer;
+import com.eventvol.util.DBUtil;
+
+public class VolunteerDAO {
+
+    public Volunteer findVolunteer(String id) throws Exception {
+        Connection con = DBUtil.getDBConnection();
+        PreparedStatement ps =
+            con.prepareStatement("SELECT * FROM VOLUNTEER_TBL WHERE VOLUNTEER_ID=?");
+        ps.setString(1, id);
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+            Volunteer v = new Volunteer();
+            v.setVolunteerID(rs.getString(1));
+            v.setFullName(rs.getString(2));
+            v.setSkillCategory(rs.getString(3));
+            v.setPrimaryPhone(rs.getString(4));
+            v.setEmail(rs.getString(5));
+            v.setStatus(rs.getString(6));
+            return v;
+        }
+        return null;
+    }
+
+    public boolean insertVolunteer(Volunteer v) throws Exception {
+        Connection con = DBUtil.getDBConnection();
+        PreparedStatement ps = con.prepareStatement(
+            "INSERT INTO VOLUNTEER_TBL VALUES (?,?,?,?,?,?)");
+        ps.setString(1, v.getVolunteerID());
+        ps.setString(2, v.getFullName());
+        ps.setString(3, v.getSkillCategory());
+        ps.setString(4, v.getPrimaryPhone());
+        ps.setString(5, v.getEmail());
+        ps.setString(6, v.getStatus());
+        return ps.executeUpdate() > 0;
+    }
+
+    public List<Volunteer> viewAllVolunteers() throws Exception {
+        List<Volunteer> list = new ArrayList<>();
+        Connection con = DBUtil.getDBConnection();
+        Statement st = con.createStatement();
+        ResultSet rs = st.executeQuery("SELECT * FROM VOLUNTEER_TBL");
+
+        while (rs.next()) {
+            Volunteer v = new Volunteer();
+            v.setVolunteerID(rs.getString(1));
+            v.setFullName(rs.getString(2));
+            v.setSkillCategory(rs.getString(3));
+            v.setPrimaryPhone(rs.getString(4));
+            v.setEmail(rs.getString(5));
+            v.setStatus(rs.getString(6));
+            list.add(v);
+        }
+        return list;
+    }
+}

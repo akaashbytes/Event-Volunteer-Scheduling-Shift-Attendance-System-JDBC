@@ -1,0 +1,5 @@
+package com.eventvol.dao;
+
+public class ShiftDAO {
+
+}

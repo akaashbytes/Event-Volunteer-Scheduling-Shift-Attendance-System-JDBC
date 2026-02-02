@@ -1,0 +1,169 @@
+package com.eventvol.dao;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.eventvol.bean.Assignment;
+import com.eventvol.util.DBUtil;
+
+public class AssignmentDAO {
+
+    // ===============================
+    // Generate Assignment ID
+    // ===============================
+    public int generateAssignmentID() {
+        try {
+            Connection con = DBUtil.getDBConnection();
+            PreparedStatement ps =
+                con.prepareStatement("SELECT ASSIGNMENT_SEQ.NEXTVAL FROM dual");
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    // ===============================
+    // Insert Assignment
+    // ===============================
+    public boolean insertAssignment(Assignment a) {
+        try {
+            Connection con = DBUtil.getDBConnection();
+            String sql =
+                "INSERT INTO ASSIGNMENT_TBL VALUES (?,?,?,?,?,NULL,NULL)";
+            PreparedStatement ps = con.prepareStatement(sql);
+
+            ps.setInt(1, a.getAssignmentID());
+            ps.setString(2, a.getVolunteerID());
+            ps.setInt(3, a.getShiftID());
+            ps.setString(4, a.getAssignedRole());
+            ps.setString(5, a.getAttendanceStatus());
+
+            return ps.executeUpdate() > 0;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    // ===============================
+    // 1️⃣ Find overlapping assignments
+    // ===============================
+    public List<Assignment> findOverlappingAssignments(
+            String volunteerID,
+            java.sql.Date shiftDate,
+            String startTime,
+            String endTime) {
+
+        List<Assignment> list = new ArrayList<>();
+
+        try {
+            Connection con = DBUtil.getDBConnection();
+            String sql =
+                "SELECT a.* FROM ASSIGNMENT_TBL a " +
+                "JOIN SHIFT_TBL s ON a.shift_id = s.shift_id " +
+                "WHERE a.volunteer_id = ? " +
+                "AND s.shift_date = ? " +
+                "AND s.start_time < ? " +
+                "AND s.end_time > ?";
+
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setString(1, volunteerID);
+            ps.setDate(2, shiftDate);
+            ps.setString(3, endTime);
+            ps.setString(4, startTime);
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                Assignment a = new Assignment();
+                a.setAssignmentID(rs.getInt("assignment_id"));
+                a.setVolunteerID(rs.getString("volunteer_id"));
+                a.setShiftID(rs.getInt("shift_id"));
+                a.setAssignedRole(rs.getString("assigned_role"));
+                a.setAttendanceStatus(rs.getString("attendance_status"));
+                list.add(a);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    // ===============================
+    // 2️⃣ Active assignments for volunteer
+    // ===============================
+    public List<Assignment> findActiveAssignmentsForVolunteer(
+            String volunteerID) {
+
+        List<Assignment> list = new ArrayList<>();
+
+        try {
+            Connection con = DBUtil.getDBConnection();
+            String sql =
+                "SELECT * FROM ASSIGNMENT_TBL " +
+                "WHERE volunteer_id = ? AND attendance_status = 'PENDING'";
+
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setString(1, volunteerID);
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                Assignment a = new Assignment();
+                a.setAssignmentID(rs.getInt("assignment_id"));
+                a.setVolunteerID(rs.getString("volunteer_id"));
+                a.setShiftID(rs.getInt("shift_id"));
+                a.setAssignedRole(rs.getString("assigned_role"));
+                a.setAttendanceStatus(rs.getString("attendance_status"));
+                list.add(a);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    // ===============================
+    // 3️⃣ Active assignments for shift
+    // ===============================
+    public List<Assignment> findActiveAssignmentsForShift(int shiftID) {
+
+        List<Assignment> list = new ArrayList<>();
+
+        try {
+            Connection con = DBUtil.getDBConnection();
+            String sql =
+                "SELECT * FROM ASSIGNMENT_TBL " +
+                "WHERE shift_id = ? AND attendance_status = 'PENDING'";
+
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, shiftID);
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                Assignment a = new Assignment();
+                a.setAssignmentID(rs.getInt("assignment_id"));
+                a.setVolunteerID(rs.getString("volunteer_id"));
+                a.setShiftID(rs.getInt("shift_id"));
+                a.setAssignedRole(rs.getString("assigned_role"));
+                a.setAttendanceStatus(rs.getString("attendance_status"));
+                list.add(a);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+}

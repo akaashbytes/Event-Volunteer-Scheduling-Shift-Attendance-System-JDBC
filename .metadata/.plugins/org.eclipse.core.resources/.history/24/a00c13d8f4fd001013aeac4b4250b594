@@ -1,0 +1,215 @@
+package com.eventvol.service;
+
+import java.util.List;
+
+import com.eventvol.bean.Assignment;
+import com.eventvol.bean.Shift;
+import com.eventvol.bean.Volunteer;
+import com.eventvol.dao.AssignmentDAO;
+import com.eventvol.dao.ShiftDAO;
+import com.eventvol.dao.VolunteerDAO;
+import com.eventvol.ActiveAssignmentsExistException;
+import com.eventvol.OverlappingShiftAssignmentException;
+import com.eventvol.ValidationException;
+
+public class EventService {
+
+    VolunteerDAO volunteerDAO = new VolunteerDAO();
+    ShiftDAO shiftDAO = new ShiftDAO();
+    AssignmentDAO assignmentDAO = new AssignmentDAO();
+
+    // ============================================
+    // VIEW VOLUNTEER DETAILS
+    // ============================================
+    public Volunteer viewVolunteerDetails(String volunteerID)
+            throws ValidationException {
+
+        if (volunteerID == null || volunteerID.trim().isEmpty()) {
+            throw new ValidationException();
+        }
+
+        return volunteerDAO.findVolunteer(volunteerID);
+    }
+
+    // ============================================
+    // VIEW ALL VOLUNTEERS
+    // ============================================
+    public List<Volunteer> viewAllVolunteers() {
+        return volunteerDAO.viewAllVolunteers();
+    }
+
+    // ============================================
+    // REGISTER NEW VOLUNTEER
+    // ============================================
+    public boolean registerNewVolunteer(Volunteer volunteer)
+            throws ValidationException {
+
+        if (volunteer == null ||
+            volunteer.getVolunteerID() == null ||
+            volunteer.getFullName() == null ||
+            volunteer.getPrimaryPhone() == null ||
+            volunteer.getSkillCategory() == null) {
+
+            throw new ValidationException();
+        }
+
+        // check uniqueness
+        if (volunteerDAO.findVolunteer(volunteer.getVolunteerID()) != null) {
+            return false;
+        }
+
+        volunteer.setStatus("ACTIVE");
+        return volunteerDAO.insertVolunteer(volunteer);
+    }
+
+    // ============================================
+    // VIEW SHIFT DETAILS
+    // ============================================
+    public Shift viewShiftDetails(int shiftID) {
+        return shiftDAO.findShift(shiftID);
+    }
+
+    // ============================================
+    // VIEW ALL SHIFTS
+    // ============================================
+    public List<Shift> viewAllShifts() {
+        return shiftDAO.viewAllShifts();
+    }
+
+    // ============================================
+    // CREATE SHIFT
+    // ============================================
+    public boolean createShift(Shift shift)
+            throws ValidationException {
+
+        if (shift == null ||
+            shift.getShiftDate() == null ||
+            shift.getStartTime() == null ||
+            shift.getEndTime() == null ||
+            shift.getLocation() == null ||
+            shift.getRequiredHeadcount() <= 0) {
+
+            throw new ValidationException();
+        }
+
+        return shiftDAO.insertShift(shift);
+    }
+
+    // ============================================
+    // ASSIGN VOLUNTEER TO SHIFT
+    // ============================================
+    public boolean assignVolunteerToShift(
+            String volunteerID,
+            int shiftID,
+            String assignedRole)
+            throws ValidationException,
+                   OverlappingShiftAssignmentException {
+
+        if (volunteerID == null || volunteerID.trim().isEmpty()
+                || shiftID <= 0
+                || assignedRole == null || assignedRole.trim().isEmpty()) {
+            throw new ValidationException();
+        }
+
+        Volunteer volunteer = volunteerDAO.findVolunteer(volunteerID);
+        Shift shift = shiftDAO.findShift(shiftID);
+
+        if (volunteer == null || shift == null) {
+            return false;
+        }
+
+        if (!"ACTIVE".equalsIgnoreCase(volunteer.getStatus())) {
+            return false;
+        }
+
+        if (!"OPEN_FOR_ASSIGNMENT".equalsIgnoreCase(shift.getStatus())) {
+            return false;
+        }
+
+        // overlapping check
+        List<Assignment> overlap =
+                assignmentDAO.findOverlappingAssignments(
+                        volunteerID,
+                        shift.getShiftDate(),
+                        shift.getStartTime(),
+                        shift.getEndTime());
+
+        if (overlap != null && !overlap.isEmpty()) {
+            throw new OverlappingShiftAssignmentException();
+        }
+
+        Assignment assignment = new Assignment();
+        assignment.setAssignmentID(assignmentDAO.generateAssignmentID());
+        assignment.setVolunteerID(volunteerID);
+        assignment.setShiftID(shiftID);
+        assignment.setAssignedRole(assignedRole);
+        assignment.setAttendanceStatus("PENDING");
+
+        return assignmentDAO.insertAssignment(assignment);
+    }
+
+    // ============================================
+    // MARK ATTENDANCE
+    // ============================================
+    public boolean markAttendance(
+            int assignmentID,
+            String attendanceStatus,
+            String checkinTime,
+            String checkoutTime)
+            throws ValidationException {
+
+        if (assignmentID <= 0 ||
+            (!"PRESENT".equalsIgnoreCase(attendanceStatus) &&
+             !"ABSENT".equalsIgnoreCase(attendanceStatus))) {
+            throw new ValidationException();
+        }
+
+        return assignmentDAO.updateAttendance(
+                assignmentID,
+                attendanceStatus,
+                checkinTime,
+                checkoutTime);
+    }
+
+    // ============================================
+    // REMOVE VOLUNTEER (SAFE DELETE)
+    // ============================================
+    public boolean removeVolunteer(String volunteerID)
+            throws ValidationException,
+                   ActiveAssignmentsExistException {
+
+        if (volunteerID == null || volunteerID.trim().isEmpty()) {
+            throw new ValidationException();
+        }
+
+        List<Assignment> active =
+                assignmentDAO.findActiveAssignmentsForVolunteer(volunteerID);
+
+        if (active != null && !active.isEmpty()) {
+            throw new ActiveAssignmentsExistException();
+        }
+
+        return volunteerDAO.deleteVolunteer(volunteerID);
+    }
+
+    // ============================================
+    // REMOVE SHIFT (SAFE CANCEL)
+    // ============================================
+    public boolean removeShift(int shiftID)
+            throws ValidationException,
+                   ActiveAssignmentsExistException {
+
+        if (shiftID <= 0) {
+            throw new ValidationException();
+        }
+
+        List<Assignment> active =
+                assignmentDAO.findActiveAssignmentsForShift(shiftID);
+
+        if (active != null && !active.isEmpty()) {
+            throw new ActiveAssignmentsExistException();
+        }
+
+        return shiftDAO.updateShiftStatus(shiftID, "CANCELLED");
+    }
+}

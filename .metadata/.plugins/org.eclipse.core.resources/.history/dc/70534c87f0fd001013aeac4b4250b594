@@ -1,0 +1,41 @@
+package com.eventvol.dao;
+
+import java.sql.*;
+import java.util.*;
+import com.eventvol.bean.Assignment;
+import com.eventvol.util.DBUtil;
+
+public class AssignmentDAO {
+
+    public int generateAssignmentID(Connection con) throws Exception {
+        Statement st = con.createStatement();
+        ResultSet rs = st.executeQuery("SELECT ASSIGNMENT_SEQ.NEXTVAL FROM DUAL");
+        rs.next();
+        return rs.getInt(1);
+    }
+
+    public boolean insertAssignment(Connection con, Assignment a) throws Exception {
+        PreparedStatement ps = con.prepareStatement(
+            "INSERT INTO ASSIGNMENT_TBL VALUES (?,?,?,?,?,?,?)");
+        ps.setInt(1, a.getAssignmentID());
+        ps.setString(2, a.getVolunteerID());
+        ps.setInt(3, a.getShiftID());
+        ps.setString(4, a.getAssignedRole());
+        ps.setString(5, a.getAttendanceStatus());
+        ps.setString(6, a.getCheckinTime());
+        ps.setString(7, a.getCheckoutTime());
+        return ps.executeUpdate() > 0;
+    }
+
+    public List<Assignment> findActiveAssignmentsForVolunteer(String volId) throws Exception {
+        List<Assignment> list = new ArrayList<>();
+        Connection con = DBUtil.getDBConnection();
+        PreparedStatement ps =
+            con.prepareStatement("SELECT * FROM ASSIGNMENT_TBL WHERE VOLUNTEER_ID=? AND ATTENDANCE_STATUS='PENDING'");
+        ps.setString(1, volId);
+        ResultSet rs = ps.executeQuery();
+
+        while (rs.next()) list.add(new Assignment());
+        return list;
+    }
+}

@@ -1,0 +1,119 @@
+package com.eventvol.service;
+
+import java.sql.Connection;
+import java.util.List;
+
+import com.eventvol.bean.Assignment;
+import com.eventvol.bean.Shift;
+import com.eventvol.bean.Volunteer;
+import com.eventvol.dao.AssignmentDAO;
+import com.eventvol.dao.ShiftDAO;
+import com.eventvol.dao.VolunteerDAO;
+import com.eventvol.util.ActiveAssignmentsExistException;
+import com.eventvol.util.DBUtil;
+import com.eventvol.util.OverlappingShiftAssignmentException;
+import com.eventvol.util.ValidationException;
+
+public class EventService {
+
+    private VolunteerDAO volunteerDAO = new VolunteerDAO();
+    private ShiftDAO shiftDAO = new ShiftDAO();
+    private AssignmentDAO assignmentDAO = new AssignmentDAO();
+
+    // =========================
+    // DEMO 1 : Register Volunteer
+    // =========================
+    public boolean registerNewVolunteer(Volunteer volunteer)
+            throws ValidationException {
+
+        if (volunteer == null ||
+            volunteer.getVolunteerID() == null ||
+            volunteer.getVolunteerID().trim().isEmpty() ||
+            volunteer.getFullName() == null ||
+            volunteer.getPrimaryPhone() == null) {
+
+            throw new ValidationException();
+        }
+
+        Volunteer existing =
+                volunteerDAO.findVolunteer(volunteer.getVolunteerID());
+
+        if (existing != null) {
+            return false;
+        }
+
+        volunteer.setStatus("ACTIVE");
+        return volunteerDAO.insertVolunteer(volunteer);
+    }
+
+    // =========================
+    // DEMO 2 : Create Shift
+    // =========================
+    public boolean createShift(Shift shift)
+            throws ValidationException {
+
+        if (shift == null ||
+            shift.getShiftDate() == null ||
+            shift.getStartTime() == null ||
+            shift.getEndTime() == null ||
+            shift.getLocation() == null ||
+            shift.getRequiredHeadcount() <= 0) {
+
+            throw new ValidationException();
+        }
+
+        return shiftDAO.insertShift(shift);
+    }
+
+    // =========================
+    // DEMO 3 : Assign Volunteer
+    // =========================
+    public boolean assignVolunteerToShift(
+            String volunteerID,
+            int shiftID,
+            String assignedRole)
+            throws ValidationException,
+                   OverlappingShiftAssignmentException {
+
+        if (volunteerID == null || volunteerID.trim().isEmpty()
+                || shiftID <= 0
+                || assignedRole == null || assignedRole.trim().isEmpty()) {
+
+            throw new ValidationException();
+        }
+
+        Volunteer v = volunteerDAO.findVolunteer(volunteerID);
+        Shift s = shiftDAO.findShift(shiftID);
+
+        if (v == null || s == null)
+            return false;
+
+        // OPTIONAL: overlapping check (simple version)
+        List<Assignment> existingAssignments =
+                assignmentDAO.findAssignmentsByVolunteer(volunteerID);
+
+        if (existingAssignments != null && !existingAssignments.isEmpty()) {
+            throw new OverlappingShiftAssignmentException();
+        }
+
+        try {
+            Connection con = DBUtil.getDBConnection();
+            con.setAutoCommit(false);
+
+            Assignment a = new Assignment();
+            a.setAssignmentID(assignmentDAO.generateAssignmentID());
+            a.setVolunteerID(volunteerID);
+            a.setShiftID(shiftID);
+            a.setAssignedRole(assignedRole);
+            a.setAttendanceStatus("PENDING");
+
+            boolean result = assignmentDAO.insertAssignment(a);
+            con.commit();
+            return result;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+}

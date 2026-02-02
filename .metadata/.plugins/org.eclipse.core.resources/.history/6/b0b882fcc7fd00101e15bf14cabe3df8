@@ -1,0 +1,5 @@
+package com.eventvol.bean;
+
+public class Shift {
+
+}

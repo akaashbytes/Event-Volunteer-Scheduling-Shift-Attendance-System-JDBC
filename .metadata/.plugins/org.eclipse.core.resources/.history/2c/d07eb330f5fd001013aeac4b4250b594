@@ -1,0 +1,92 @@
+package com.eventvol.dao;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.eventvol.bean.Assignment;
+import com.eventvol.util.DBUtil;
+
+public class AssignmentDAO {
+
+    public int generateAssignmentID() {
+        try {
+            Connection con = DBUtil.getDBConnection();
+            PreparedStatement ps =
+                con.prepareStatement("SELECT ASSIGNMENT_SEQ.NEXTVAL FROM DUAL");
+            ResultSet rs = ps.executeQuery();
+            if (rs.next())
+                return rs.getInt(1);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    public boolean insertAssignment(Assignment assignment) {
+        try {
+            Connection con = DBUtil.getDBConnection();
+            String query = "INSERT INTO ASSIGNMENT_TBL VALUES (?,?,?,?,?,?,?)";
+            PreparedStatement ps = con.prepareStatement(query);
+
+            ps.setInt(1, assignment.getAssignmentID());
+            ps.setString(2, assignment.getVolunteerID());
+            ps.setInt(3, assignment.getShiftID());
+            ps.setString(4, assignment.getAssignedRole());
+            ps.setString(5, assignment.getAttendanceStatus());
+            ps.setString(6, assignment.getCheckinTime());
+            ps.setString(7, assignment.getCheckoutTime());
+
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean updateAttendance(int assignmentID, String attendanceStatus,
+                                    String checkinTime, String checkoutTime) {
+        try {
+            Connection con = DBUtil.getDBConnection();
+            String query =
+                "UPDATE ASSIGNMENT_TBL SET ATTENDANCE_STATUS=?, CHECKIN_TIME=?, CHECKOUT_TIME=? WHERE ASSIGNMENT_ID=?";
+            PreparedStatement ps = con.prepareStatement(query);
+
+            ps.setString(1, attendanceStatus);
+            ps.setString(2, checkinTime);
+            ps.setString(3, checkoutTime);
+            ps.setInt(4, assignmentID);
+
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public List<Assignment> findAssignmentsByVolunteer(String volunteerID) {
+        List<Assignment> list = new ArrayList<>();
+        try {
+            Connection con = DBUtil.getDBConnection();
+            String query = "SELECT * FROM ASSIGNMENT_TBL WHERE VOLUNTEER_ID=?";
+            PreparedStatement ps = con.prepareStatement(query);
+            ps.setString(1, volunteerID);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                Assignment a = new Assignment();
+                a.setAssignmentID(rs.getInt(1));
+                a.setVolunteerID(rs.getString(2));
+                a.setShiftID(rs.getInt(3));
+                a.setAssignedRole(rs.getString(4));
+                a.setAttendanceStatus(rs.getString(5));
+                a.setCheckinTime(rs.getString(6));
+                a.setCheckoutTime(rs.getString(7));
+                list.add(a);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+}
