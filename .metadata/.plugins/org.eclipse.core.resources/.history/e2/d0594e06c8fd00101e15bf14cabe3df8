@@ -1,5 +1,0 @@
-package com.eventvol.util;
-
-public class OverlappingShiftAssignmentException {
-
-}
